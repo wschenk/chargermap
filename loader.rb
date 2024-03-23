@@ -4,7 +4,7 @@ require_relative './job'
 
 class Loader
   def initialize
-    @dir = ENV['DB_DIR'] || '.'
+    @dir = ENV['DB_DIR'].blank? ? "." : ENV['DB_DIR']
   end
 
   def db; "#{@dir}/db"; end
@@ -58,6 +58,9 @@ class Loader
                --rename 'EV Connector Types' ev_connector_types \
                --rename 'Fuel Type Code' fuel_type_code \
                --rename ID id \
+               --rename City city \
+               --rename State state \
+               --rename ZIP zip \
                --rename Latitude latitude \
                --rename Longitude longitude")
 

@@ -2,7 +2,7 @@ require 'active_support/all'
 
 class Job
   def initialize
-    @dir = ENV['DB_DIR'] || '.'
+    @dir = ENV['DB_DIR'].blank? ? '.' : ENV['DB_DIR']
   end
 
   def active_file; "#{@dir}/job_active"; end
@@ -10,6 +10,7 @@ class Job
   def reset_file; "#{@dir}/job_reset"; end
 
   def start
+    log "Stop started"
     if File.exists? active_file
       rm active_file
     end
@@ -30,12 +31,19 @@ class Job
   end
 
   def done
+    log "Job done"
     rm active_file
     File.open(done_file, "w") {}
     File.open(reset_file, "w") {}
   end
 
   def is_current?
+    l = Loader.new
+
+    if !l.db_exists?
+      return false
+    end
+
     if !File.exists?( done_file )
       return false
     end
@@ -50,6 +58,7 @@ class Job
   def reset_check
     if File.exist? reset_file
       rm reset_file
+      log "Needs reset"
       return true
     end
 
@@ -60,6 +69,10 @@ class Job
     if File.exist? file
       File.unlink file
     end
+  end
+
+  def log message
+    system( "echo $(date +\"%Y-%m-%dT%H:%M:%S\") #{message} >> #{@dir}/log" )
   end
 end
 

@@ -1,3 +1,5 @@
 node_modules/
 *csv
 *db
+job_*
+db-*
