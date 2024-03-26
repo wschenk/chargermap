@@ -10,7 +10,7 @@ class Job
   def reset_file; "#{@dir}/job_reset"; end
 
   def start
-    log "Stop started"
+    log "Job started"
     if File.exists? active_file
       rm active_file
     end

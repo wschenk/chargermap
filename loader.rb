@@ -16,30 +16,43 @@ class Loader
   def needs_reset
     j = Job.new
 
-    if !j.is_active? && !j.is_current?
-      j.start
-      system( "mv #{csv} #{@dir}/bak.csv" )
-      system( "mv #{db} #{@dir}/bak.db" )
-      system( "ruby loader.rb&" )
+    if !j.is_active?
+      if !db_valid || !j.is_current?
+        j.start
+        system( "mv #{csv} #{@dir}/bak.csv" )
+        system( "mv #{db} #{@dir}/bak.db" )
+        system( "ruby loader.rb&" )
+      end
     end
 
     j.reset_check
   end
   
   def ensure!
-    if !db_exists?
-      if !csv_exists?
-        puts "Downloading csv"
-        download_csv
-      end
+    if !csv_exists?
+      puts "Downloading csv"
+      download_csv
     end
 
-    if !db_exists?
+    if !db_exists? || !db_valid
       create_db
     end
     
     j = Job.new
     j.done
+  end
+
+  def db_valid
+    sql = SQLite3::Database.open( db )
+    begin
+      sql.execute( "select count(*) from stations;" )
+    rescue
+      return false
+    ensure
+      sql.close
+    end
+
+    return true
   end
   
   def download_csv

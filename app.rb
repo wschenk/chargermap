@@ -5,6 +5,18 @@ require_relative './loader'
 require_relative './job'
 
 class Stations < ActiveRecord::Base
+  def self.in_map( n, e, s, w, connectors )
+    query = where( "Latitude > ? and Latitude < ? and Longitude > ? and Longitude < ?", s, n, w, e )
+    if( !connectors.blank? && connectors != 'null' )
+      sql = connectors.split( "," ).collect { |x| "#{x} = 1" }.join( " or ")
+      query = query.where( sql )
+    end
+
+    puts query.to_sql
+
+    query
+  end
+  
   def self.around( lat, lon, connectors = "" )
     query = where( "Latitude > ? and Latitude < ? and Longitude > ? and Longitude < ?", lat - 1, lat + 1, lon - 1, lon + 1 )
     connectors.split( "," ).each do |c|
@@ -19,6 +31,7 @@ class Stations < ActiveRecord::Base
       latitude: latitude,
       longitude: longitude,
       name: attributes['Station Name'],
+      address: attributes['Street Address'],
       city: city,
       state: state,
       zip: zip,
@@ -47,10 +60,11 @@ class App < Sinatra::Base
   set :database, {adapter: "sqlite3", database: l.db}
 
   before do
+    response.headers['Access-Control-Allow-Origin'] = '*'
     if l.needs_reset
       Stations.connection.disconnect!
     end
-  end  
+  end
 
   get '/' do
     l = Loader.new
@@ -97,6 +111,14 @@ class App < Sinatra::Base
     end
     
     Stations.around( params[:lat].to_f, params[:lon].to_f, params[:connectors] ).collect do |s|
+      s.to_serialize
+    end.to_json
+  end
+
+  get '/in_map' do
+    content_type :json
+
+    Stations.in_map( params[:n], params[:e], params[:s], params[:w], params[:connectors] ).collect do |s|
       s.to_serialize
     end.to_json
   end
