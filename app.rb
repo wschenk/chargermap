@@ -5,11 +5,23 @@ require_relative './loader'
 require_relative './job'
 
 class Stations < ActiveRecord::Base
-  def self.in_map( n, e, s, w, connectors )
+  def self.in_map( n, e, s, w, connectors, dc, l1, l2 )
     query = where( "Latitude > ? and Latitude < ? and Longitude > ? and Longitude < ?", s, n, w, e )
     if( !connectors.blank? && connectors != 'null' )
       sql = connectors.split( "," ).collect { |x| "#{x} = 1" }.join( " or ")
       query = query.where( sql )
+    end
+
+    if( dc == 'false' )
+      query = query.where( '[EV DC Fast Count] = ""' )
+    end
+
+    if( l1 == 'false' )
+      query = query.where( '[EV Level1 EVSE Num] = ""' )
+    end
+
+    if( l2 == 'false' )
+      query = query.where( '[EV Level2 EVSE Num] = ""' )
     end
 
     puts query.to_sql
@@ -17,11 +29,30 @@ class Stations < ActiveRecord::Base
     query
   end
   
-  def self.around( lat, lon, connectors = "" )
+  def self.around( lat, lon, connectors = "", dc, l1, l2 )
     query = where( "Latitude > ? and Latitude < ? and Longitude > ? and Longitude < ?", lat - 1, lat + 1, lon - 1, lon + 1 )
     connectors.split( "," ).each do |c|
       query = query.where( "#{c} = ?", 1 )
     end
+
+    if( dc == 'true' )
+      query = query.where( "[EV DC Fast Count] != ?", 0 )
+    else
+      query = query.where( "[EV DC Fast Count] = ?", 0 )
+    end
+
+    if( l1 == 'true' )
+      query = query.where( "[EV Level1 EVSE Num] != ?", 0 )
+    else
+      query = query.where( "[EV Level1 EVSE Num] = ?", 0 )
+    end
+
+    if( l1 == 'true' )
+      query = query.where( "[EV Level2 EVSE Num] != ?", 0 )
+    else
+      query = query.where( "[EV Level2 EVSE Num] = ?", 0 )
+    end
+
 
     query
   end
@@ -118,7 +149,15 @@ class App < Sinatra::Base
   get '/in_map' do
     content_type :json
 
-    Stations.in_map( params[:n], params[:e], params[:s], params[:w], params[:connectors] ).collect do |s|
+    Stations.in_map( params[:n],
+                     params[:e],
+                     params[:s],
+                     params[:w],
+                     params[:connectors],
+                     params[:dc],
+                     params[:level1],
+                     params[:level2]
+                   ).collect do |s|
       s.to_serialize
     end.to_json
   end
