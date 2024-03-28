@@ -1,72 +1,91 @@
-require 'csv'
+require 'active_support/all'
 require 'sqlite3'
-require_relative './job'
+require_relative './job.rb'
 
 class Loader
   def initialize
     @dir = ENV['DB_DIR'].blank? ? "." : ENV['DB_DIR']
   end
 
-  def db; "#{@dir}/db"; end
-  def csv; "#{@dir}/csv"; end
-  
-  def db_exists?; File.exist? db; end
-  def csv_exists?; File.exist? csv; end
-
   def needs_reset
     j = Job.new
 
     if !j.is_active?
-      if !db_valid || !j.is_current?
-        j.start
-        system( "mv #{csv} #{@dir}/bak.csv" )
-        system( "mv #{db} #{@dir}/bak.db" )
+      if !data_valid?
         system( "ruby loader.rb&" )
       end
     end
 
     j.reset_check
   end
-  
-  def ensure!
-    if !csv_exists?
-      puts "Downloading csv"
-      download_csv
-    end
 
-    if !db_exists? || !db_valid
-      create_db
-    end
+  def file; "#{@dir}/db"; end
+  def working_db; "#{@dir}/working_db"; end
+  def source_file; "#{@dir}/csv"; end
+
+  def data_valid?
+    valid? && source_valid?
+  end
     
-    j = Job.new
-    j.done
+  def valid?
+    return false unless File.exists?( file )
+
+    return check_table
   end
 
-  def db_valid
-    sql = SQLite3::Database.open( db )
+  def check_table
+    sql = SQLite3::Database.open( file )
     begin
-      sql.execute( "select count(*) from stations;" )
+      sql.execute( "select count(*) from stations;" );
     rescue
       return false
     ensure
       sql.close
     end
-
+    
     return true
   end
-  
-  def download_csv
-    puts "Downloading csv"
+
+  def source_valid?
+    return false unless File.exists?( source_file )
+
+    File.mtime( source_file ) > 12.hours.ago
+  end
+
+  def load_database
+    j = Job.new
+    j.start
+
+    if !source_valid?
+      download_sourcefile
+    end
+
+    if File.exists? working_db
+      system( "rm #{working_db}" )
+    end
+    
+    create_db
+
+    if File.exists? file
+      system( "mv #{file} #{file}.bak" )
+    end
+    
+    system( "mv #{working_db} #{file}" )
+
+    j.done
+  end
+
+  def download_sourcefile
     system( "node download.js" )
-    system( "mv /tmp/*csv #{csv}" )
+    system( "mv /tmp/*csv #{source_file}" )
   end
 
   def create_db
     puts "Creating database"
 
-    system( "sqlite-utils insert #{db} stations #{csv} --csv --detect-types" )
+    system( "sqlite-utils insert #{working_db} stations #{source_file} --csv --detect-types" )
 
-    system( "sqlite-utils transform #{db} stations \
+    system( "sqlite-utils transform #{working_db} stations \
                --rename 'Date Last Confirmed' date_last_confirmed \
                --rename 'EV Connector Types' ev_connector_types \
                --rename 'Fuel Type Code' fuel_type_code \
@@ -81,7 +100,8 @@ class Loader
   end
 
   def massage_data
-    d = SQLite3::Database.open( db )
+    d = SQLite3::Database.open( working_db )
+
     d.busy_timeout = 1000
       
     results = d.query( "select distinct ev_connector_types from stations
@@ -109,17 +129,22 @@ class Loader
       c = d.execute cmd
     end
   end
+
 end
 
 if __FILE__ == $0
-  puts "Running on command line"
+  db = Loader.new
+  j = Job.new
 
-  l = Loader.new
-  puts "DB Exists? #{l.db_exists?}"
-  puts "CSV Exists? #{l.csv_exists?}"
+  s = "%15s: %s\n"
+  printf s, "job active", j.is_active?
+  printf s, "db file", db.file
+  printf s, "source file", db.source_file
+  printf s, "data valid", db.data_valid?
+  printf s, "db valid", db.valid?
+  printf s, "source valid", db.source_valid?
 
-  l.ensure!
+  db.load_database if !db.data_valid? && !j.is_active?
 
-  puts "DB Exists? #{l.db_exists?}"
-  puts "CSV Exists? #{l.csv_exists?}"
 end
+

@@ -88,7 +88,7 @@ class App < Sinatra::Base
   register Sinatra::ActiveRecordExtension
   l = Loader.new
   
-  set :database, {adapter: "sqlite3", database: l.db}
+  set :database, {adapter: "sqlite3", database: l.file}
 
   before do
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -107,11 +107,11 @@ class App < Sinatra::Base
     end
 
 
-    { db: l.db,
-      csv: l.csv,
-      csv_exists: l.csv_exists?,
-      db_exists: l.db_exists?,
-      current: j.is_current?,
+    { db: l.file,
+      source_file: l.source_file,
+      source_valid: l.source_valid?,
+      db_valid: l.valid?,
+      data_valid: l.data_valid?,
       processing: j.is_active?
     }.to_json
   end

@@ -37,24 +37,6 @@ class Job
     File.open(reset_file, "w") {}
   end
 
-  def is_current?
-    l = Loader.new
-
-    if !l.db_exists?
-      return false
-    end
-
-    if !File.exists?( done_file )
-      return false
-    end
-
-    if File.mtime( done_file ) < 1.day.ago
-      return false
-    end
-
-    return true
-  end
-
   def reset_check
     if File.exist? reset_file
       rm reset_file
@@ -72,49 +54,7 @@ class Job
   end
 
   def log message
+    puts message
     system( "echo $(date +\"%Y-%m-%dT%H:%M:%S\") #{message} >> #{@dir}/log" )
   end
-end
-
-if __FILE__ == $0
-  j = Job.new
-
-  def timeout_test
-
-    puts "Is active? #{j.is_active?}"
-    puts "Is current? #{j.is_current?}"
-
-    puts "-- Calling start"
-    j.start
-    
-    puts "Is active? #{j.is_active?}"
-    puts "Is current? #{j.is_current?}"
-    
-    puts "-- Calling done"
-    
-    j.done
-    
-    puts "Is active? #{j.is_active?}"
-    puts "Is current? #{j.is_current?}"
-  end
-
-  def poll_test
-    j = Job.new
-    while true
-      if !j.is_active? && !j.is_current?
-        puts "Starting job"
-        j.start
-        Thread.new do
-          sleep 5
-          puts "Job done"
-          j.done
-        end
-      end
-
-      puts "Active #{j.is_active?} Current #{j.is_current?}"
-      sleep 1
-    end
-  end
-
-  poll_test
 end
