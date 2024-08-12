@@ -116,6 +116,10 @@ class App < Sinatra::Base
     }.to_json
   end
 
+  get '/db' do
+    send_file( l.file )
+  end
+
   get '/stats' do
     content_type :json
     {

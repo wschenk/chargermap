@@ -5,3 +5,5 @@ job_*
 db-*
 log
 backup*
+.aider*
+.DS_Store
