@@ -22,8 +22,9 @@ primary_region = 'ewr'
   cpus = 1
 
 [mounts]
-  source="myapp_data"
+  source="database"
   destination="/data"
+  initial_size="1gb"
 
 [env]
   DB_DIR="/data"
