@@ -4,7 +4,7 @@ import puppeteer from "puppeteer";
 async function waitUntilDownload(page, fileName = "") {
   return new Promise((resolve, reject) => {
     page._client().on("Page.downloadProgress", (e) => {
-      console.log("Download progress:", e);
+      // console.log("Download progress:", e);
       if (e.state === "completed") {
         resolve(fileName);
       } else if (e.state === "canceled") {

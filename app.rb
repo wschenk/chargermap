@@ -1,6 +1,10 @@
+require 'dotenv/load'
 require 'sinatra/base'
 require 'sqlite3'
 require "sinatra/activerecord"
+require 'net/http'
+require 'uri'
+require 'json'
 require_relative './loader'
 require_relative './job'
 
@@ -178,5 +182,53 @@ class App < Sinatra::Base
       nema515: Stations.where( nema515: 1 ).count,
       nema520: Stations.where( nema520: 1 ).count
     }.to_json
+  end
+
+  get '/food' do
+    content_type :json
+
+    puts params[:lat]
+    puts params[:lng]
+
+    # Build the URI with query parameters
+uri = URI('https://serpapi.com/search.json')
+
+# Define your query parameters as a hash
+p = {
+
+      engine: "google_maps",
+      q: "food",
+      ll: "@#{params[:lat]},#{params[:lng]},14z",
+      google_domain: "google.com",
+      hl: "en",
+      type: "search",
+      api_key: ENV['SERP_API_KEY'],
+    }
+  
+# Append the query parameters to the URI
+uri.query = URI.encode_www_form(p)
+
+# Make the GET request
+response = Net::HTTP.get_response(uri)
+
+# Optionally, parse the JSON response
+if response.is_a?(Net::HTTPSuccess)
+  result = JSON.parse(response.body)
+  return result.to_json
+else
+  return {error: "HTTP Error: #{response.code} #{response.message}"}.to_json
+end
+    # urlParams = {
+    #   engine: "google_maps",
+    #   q: "food",
+    #   ll: `${lat},${lng},14z`,
+    #   google_domain: "google.com",
+    #   hl: "en",
+    #   type: "search",
+    #   api_key: serpApi,
+    # });
+  
+    # const url = `https://serpapi.com/search.json?${urlParams}`;
+  
   end
 end

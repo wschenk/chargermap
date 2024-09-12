@@ -11,3 +11,5 @@ gem "rerun", "~> 0.14.0"
 gem "rackup", "~> 2.1"
 gem "sinatra-activerecord", "~> 2.0"
 gem "rack", "~> 3.0"
+
+gem "dotenv", "~> 3.1"

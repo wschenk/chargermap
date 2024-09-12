@@ -2,8 +2,9 @@ node_modules/
 *csv
 *db
 job_*
-db-*
+db*
 log
 backup*
 .aider*
 .DS_Store
+.env
