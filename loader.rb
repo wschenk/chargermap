@@ -76,8 +76,8 @@ class Loader
   end
 
   def download_sourcefile
-    system( "node download.js" )
-    system( "mv /tmp/*csv #{source_file}" )
+    api_key = ENV['NREL_API_KEY'] || 'dyr2ePPoNOyuO2EtGAyobr9ZaETrKTG7YxcP4r1U'
+    system( "curl -s -o #{source_file} 'https://developer.nrel.gov/api/alt-fuel-stations/v1.csv?api_key=#{api_key}&fuel_type=ELEC&limit=all'" )
   end
 
   def create_db
