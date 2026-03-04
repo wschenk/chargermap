@@ -120,6 +120,11 @@ class App < Sinatra::Base
     }.to_json
   end
 
+  get '/LLMs.txt' do
+    content_type :text
+    send_file( File.join( File.dirname(__FILE__), 'LLMs.txt' ) )
+  end
+
   get '/db' do
     send_file( l.file )
   end
