@@ -1,0 +1,121 @@
+# ChargerMap API
+
+EV charging station locator API serving data from the US Department of Energy's Alternative Fuels Data Center (AFDC) via NREL. Data is refreshed automatically every 12 hours.
+
+Base URL: https://chargermap.fly.dev
+
+## Endpoints
+
+### GET /
+Returns system health: whether the database and source CSV are valid, and if a refresh is in progress.
+
+### GET /status
+Returns aggregate stats about the dataset: total station count, most recent confirmation date, and counts per connector type (tesla, j1772, j1772combo, nema1450, nema515, nema520).
+
+### GET /stats
+Returns total station count plus counts for CT and NY states.
+
+### GET /in_map
+The primary search endpoint. Returns all stations within a bounding box.
+
+Parameters:
+- `n` (required) - North latitude bound
+- `s` (required) - South latitude bound
+- `e` (required) - East longitude bound
+- `w` (required) - West longitude bound
+- `connectors` - Comma-separated connector type filter. Valid values: `tesla`, `j1772`, `j1772combo`, `chademo`, `nema1450`, `nema515`, `nema520`. When set, returns stations that have ANY of the listed connector types. Pass `null` or omit for all connectors.
+- `dc` - Set to `false` to exclude stations with DC fast charging. Any other value (or omitted) includes them.
+- `level1` - Set to `false` to exclude stations with Level 1 charging. Any other value (or omitted) includes them.
+- `level2` - Set to `false` to exclude stations with Level 2 charging. Any other value (or omitted) includes them.
+
+Example: `/in_map?n=41.0&e=-73.0&s=40.7&w=-74.0&connectors=tesla,j1772combo&dc=true&level1=true&level2=true`
+
+### GET /around
+Returns stations within ~1 degree lat/lon of a point. Unlike `/in_map`, this endpoint requires ALL listed connectors to be present (AND logic), and the `dc`/`l1`/`l2` params work as include/exclude toggles (`true` = must have, `false` = must not have).
+
+Parameters:
+- `lat` (required) - Latitude
+- `lon` (required) - Longitude
+- `connectors` - Comma-separated connector types (AND logic — station must have all listed)
+- `dc` - `true` to require DC fast charging, `false` to exclude it
+- `l1` - `true` to require Level 1, `false` to exclude it
+- `l2` - `true` to require Level 2, `false` to exclude it
+
+### GET /networks
+Returns a JSON object of all charging network names and their station counts.
+
+### GET /facility_types
+Returns a JSON object of all facility types and their station counts.
+
+### GET /db
+Downloads the raw SQLite database file.
+
+### GET /food
+Proxies a Google Maps search for food near a location via SerpAPI.
+
+Parameters:
+- `lat` (required) - Latitude
+- `lng` (required) - Longitude
+
+## Station Object
+
+Each station returned by `/in_map` and `/around` has these fields:
+
+```json
+{
+  "id": 12345,
+  "latitude": 40.7128,
+  "longitude": -74.006,
+  "name": "Station Name",
+  "address": "123 Main St",
+  "city": "New York",
+  "state": "NY",
+  "zip": "10001",
+  "country": "US",
+  "facility": "PARKING_LOT",
+  "level1": 0,
+  "level2": 4,
+  "dcfast": 2,
+  "network": "ChargePoint Network",
+  "date_last_confirmed": "2026-01-15",
+  "workplace": "",
+  "chademo": 0,
+  "j1772": 1,
+  "j1772combo": 1,
+  "nema1450": 0,
+  "nema515": 0,
+  "tesla": 0
+}
+```
+
+- `level1`, `level2`, `dcfast` — number of plugs at each charging level
+- `chademo`, `j1772`, `j1772combo`, `nema1450`, `nema515`, `tesla` — 1 if the station has that connector, 0 or null otherwise
+
+## Connector Types
+
+- `tesla` — Tesla proprietary connector (NACS)
+- `j1772` — J1772 (standard Level 1/2 connector, most common)
+- `j1772combo` — CCS/J1772 Combo (DC fast charging standard)
+- `chademo` — CHAdeMO (DC fast charging, legacy)
+- `nema1450` — NEMA 14-50 (240V outlet)
+- `nema515` — NEMA 5-15 (standard 120V outlet)
+- `nema520` — NEMA 5-20 (120V 20A outlet)
+
+## Charging Levels
+
+- **Level 1** — 120V AC, slowest (~4 miles of range per hour)
+- **Level 2** — 240V AC, moderate (~25 miles of range per hour)
+- **DC Fast** — 200-900V DC, fastest (~200+ miles per hour)
+
+## Usage Tips
+
+- For map-based UIs, use `/in_map` with the viewport bounding box.
+- Use `/around` when searching from a specific point (e.g. user's location).
+- The `connectors` parameter on `/in_map` uses OR logic (any match), while `/around` uses AND logic (all must match).
+- The `dc`, `level1`, `level2` filters on `/in_map` only filter when set to `false` (exclude). On `/around` they act as toggles in both directions.
+- Tesla vehicles with NACS can use `tesla` connectors natively and `j1772combo` (CCS) with an adapter.
+- Most non-Tesla EVs in North America use `j1772` for Level 2 and `j1772combo` for DC fast charging.
+
+## Data Refresh
+
+The CSV is downloaded from the NREL API every 12 hours. When the source CSV is newer than the database, a background job rebuilds the SQLite database from the fresh CSV. During rebuilds, the old database continues serving requests until the new one is ready.
