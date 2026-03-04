@@ -24,7 +24,12 @@ class Loader
   def source_file; "#{@dir}/csv"; end
 
   def data_valid?
-    valid? && source_valid?
+    valid? && source_valid? && db_newer_than_source?
+  end
+
+  def db_newer_than_source?
+    return false unless File.exists?( file ) && File.exists?( source_file )
+    File.mtime( file ) > File.mtime( source_file )
   end
     
   def valid?
